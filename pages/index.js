@@ -13,6 +13,7 @@ import { db } from '../firebase';
 import firebase from 'firebase';
 import { useCollectionOnce, } from 'react-firebase-hooks/firestore';
 import DocumentRow from '../components/DocumentRow';
+import { useRouter } from 'next/router'
 
 
 export default function Home() {
@@ -21,15 +22,29 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [input, setInput] = useState("");
   const [snapshot] = useCollectionOnce(db.collection('userDocs').doc(session.user.email).collection('docs').orderBy('timestamp', 'desc'));
+  const router = useRouter();
+
 
 
   const createDocument = () => {
     if (!input) return;
 
-    db.collection('userDocs').doc(session.user.email).collection('docs').add({
+    const docsAddr = db.collection('userDocs').doc(session.user.email).collection('docs');
+
+    docsAddr.add({
       fileName: input,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     });
+
+    let createdId = docsAddr.where('fileName', '==', input).get().then((query) => {
+      query.forEach(doc => {
+        // console.log(doc.id, " => ", doc.data);
+        router.push(`/doc/${doc.id}`)
+      });
+    }).catch((error) => {
+      console.log('Error getting docs: ', error)
+    })
+    // console.log(createdId);
     setInput('');
     setShowModal(false);
   };
@@ -46,7 +61,7 @@ export default function Home() {
         onChange={(e) => setInput(e.target.value)}
         className="outline-none w-full"
         placeholder="Enter name of document..."
-        oneKeyDown={(e) => e.key === "Enter" && createDocument()}
+        onKeyDown={(e) => e.key === "Enter" && createDocument()}
         />
       </ModalBody>
       <ModalFooter>
